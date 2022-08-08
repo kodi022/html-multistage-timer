@@ -3,6 +3,7 @@ Just a little timer project to get more familiar with html. (Created before Marc
 
 ### Usage 
 
+ - Download zip, extract zip, open folder.
  - Drag the index.html into your browser as a new tab.
  - Change the `Stage amount` to as many a stages as desired/allowed.
  - Change the time for each stage to desired values. No need to be in order.
