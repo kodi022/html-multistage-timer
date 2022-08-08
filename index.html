@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>jsStuff</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
+    <style>
+        #body 
+        {
+            font-family: Tahoma;
+            width:100vw;
+            height:100vh;
+            background-color: #343b41;
+            color:#fdf9ee;
+            columns: 300px 2;
+            column-gap: 1px;
+            column-rule: 2px solid #000000;
+            column-span: all;
+            column-fill: balance;
+            align-items:center;
+        }
+        #timer 
+        {
+            align-items: center;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            height:100%;
+        }
+        #right
+        {
+            align-items: center;
+            text-align: center;
+            height:85%;
+        }
+        #right2
+        {
+            align-items: center;
+            text-align: center;
+            height:15%;
+        }
+        #timerNum 
+        {
+            background-color:rgb(21, 87, 27);
+            width: 250px;
+            font-size: 60px;
+            font-family: tahoma;
+        }
+        #startBtn 
+        {
+            background-color:rgb(35, 218, 80);
+            width: 250px;
+            font-size: 20px;
+            font-family: tahoma;
+            text-align: center;
+        }
+    </style>
+</head>
+<body id="body">
+    <div id="timer">
+        <label id="timerNum">0</label>
+        <button id="startBtn" onclick="StartFn()">Start</button>
+        <div id="checks"></div>
+    </div>
+    <div id="right" class="text-center">
+        <div>
+            <label id="label1">Stage amount:</label>
+            <input id="timerInput" type="number"></input>
+            <button id="stageBtn" onclick="ApplyStages()">Apply</button>
+        </div>
+        <div id="stages"></div>
+    </div>
+    <div id="right2">
+        <label>Volume:</label>
+        <input id="volumeSlider" type="range" min="0" max="10" value="7" class="slider">
+        <audio id="beep" preload src="./beep.mp3"></audio>
+        <div>
+            <button id="loadCookie" onclick="ManageCookie(false)">Load Cookie</button>
+            <button id="saveCookie" onclick="ManageCookie(true)">Save Cookie</button>
+        </div>
+        <div>
+            <button id="loadJSON" onclick="ManageJson(false)">Load JSON</button>
+            <button id="saveJSON" onclick="ManageJson(true)">Save JSON</button>  
+        </div>
+    </div>
+
+    <script>
+        const topdiv = document.getElementById("top");
+        const left = document.getElementById("left");
+        const right = document.getElementById("right");
+        const timerNum = document.getElementById("timerNum");
+        const startBtn = document.getElementById("startBtn");
+        const timerInput = document.getElementById("timerInput");
+
+        const beep = document.getElementById("beep");
+        const volumeSlider = document.getElementById("volumeSlider");
+
+        volumeSlider.oninput = function() 
+        {
+            beep.volume = this.value/10;
+        }
+        timerInput.oninput = function() 
+        {
+            ApplyStages();
+        }
+
+        let checks = document.getElementById("checks");
+        let maxTimers = 10;
+        let error = false;
+        let running = false;
+        timerInput.value = 3;
+        let timers = 0;
+
+        let triggerTimes = [5,10,15];
+        let tempTimes = []; // this is what the timer watches and modifies
+        let tick = 0; // adds every 100ms
+        let passed = 0; // ticks how many stages were reached
+
+        ApplyStages();
+
+        function UpdateTriggerTimes() 
+        {
+            for (let i = 0; i < timers; i++) 
+            {
+                let currentTimer = Number(document.getElementById(`inputname${i}`).value);
+                if (!isNaN(currentTimer)) 
+                {
+                    triggerTimes[i] = currentTimer;
+                } else 
+                {
+                    triggerTimes[i] = 0;
+                    error = true;
+                }
+            }
+        }
+
+        function ApplyStages() 
+        {
+            if (running) running = false;
+
+            // clamp timers between 1 and maxvalue
+            timers = timerInput.value;
+            if (timers > maxTimers)
+            {
+                timers = maxTimers;
+                timerInput.value = maxTimers;
+            } else if (timers < 1)
+            {
+                timers = 1;
+                timerInput.value = 1;
+            }
+            triggerTimes.length = timers;
+
+            // recreate stages parent object to reset stages
+            stages.remove();
+            let newstages = document.createElement("div");
+            newstages.id = "stages";
+            newstages.className = "text-center";
+            right.append(newstages);
+            stages = document.getElementById("stages");
+
+            // generate the new timers
+            for (let i = 0; i < timers; i++) 
+            {
+                let div = document.createElement("div");
+                let label = document.createElement("label");  
+                let input = document.createElement("input", "number");
+
+                div.id = `stage${i}`;
+                div.className = "stage";
+                label.innerHTML = `Stage ${i+1} :`;
+                input.id = `inputname${i}`;
+
+                if (isNaN(triggerTimes[i]) || triggerTimes[i] == 999_999_999) triggerTimes[i] = 0;
+                input.value = triggerTimes[i];
+                
+                div.append(label);
+                div.append(input);
+                stages.append(div);
+            }
+        }
+
+
+        function StartFn() 
+        {
+            timers = document.getElementById("timerInput").value;
+
+            UpdateTriggerTimes();
+
+            // laction for if there is a invalid timer number or the timer is running
+            if (running == false && error == true) 
+            {
+                error = false;
+                running = false;
+                startBtn.innerHTML = "INVALID NUMBER";
+                startBtn.style.backgroundColor = "rgb(255, 60, 60)";
+
+                setTimeout(function() {
+                    if (running == false) 
+                    {
+                        startBtn.innerHTML = "Start";
+                        startBtn.style.backgroundColor = "rgb(35, 218, 80)";
+                    } else 
+                    {
+                        startBtn.style.backgroundColor = "rgb(35, 218, 80)";
+                    }
+                }, 1000);
+
+            } else if (running == false && error == false) 
+            {
+                timerNum.innerHTML = "0";
+                Timer();
+                running = true;
+                startBtn.innerHTML = "Stop";
+
+                // delete checks and remake
+                checks.remove();
+                let newchecks = document.createElement("div");
+                newchecks.id = "checks";
+                timer.append(newchecks);
+                checks = document.getElementById("checks");
+
+                // sort then create the visual stage numbers
+                triggerTimes.sort(function(a, b) {return a - b});
+                for (let i = 0; i < triggerTimes.length; i++) 
+                {
+                    let label = document.createElement("label");
+                    label.innerHTML = `Stage ${i+1} :`;
+
+
+                    let newDiv = document.createElement("div");
+                    newDiv.style.backgroundColor = "rgb(80, 20, 20)";
+                    newDiv.id = `d${triggerTimes[i]}+${i}`; // weird name so if multiple timers are the same value, all can still be found
+                    newDiv.style.marginTop = "5px";
+                    newDiv.style.width = "200px";
+                    newDiv.style.height = "50px";
+                    newDiv.style.alignContent = "center";
+
+                    let newCheck = document.createElement("label");
+                    newCheck.innerHTML = `${triggerTimes[i]}`;
+                    newCheck.style.fontSize = "40px";
+                    newCheck.style.lineHeight = "100%";
+                    newDiv.append(label);
+                    newDiv.append(newCheck);
+                    
+                    checks.append(newDiv);
+                }
+                tempTimes = triggerTimes;
+
+            } else 
+            {
+                running = false;
+                tick = 0;
+                startBtn.innerHTML = "Start";
+            }
+        }
+
+ 
+        function Timer() 
+        {
+            tick++;
+
+            if ((tick/10).toString().includes(".")) 
+            {
+                timerNum.innerHTML = tick/10;
+            } else 
+            {
+                timerNum.innerHTML = tick/10 + ".0";
+            }
+            
+            if (tick % 10 == 0) 
+            {
+                for (let i = 0; i < tempTimes.length; i++) 
+                {
+                    if (tick/10 >= tempTimes[i]) 
+                    {
+                        document.getElementById(`d${tempTimes[i]}+${i}`).style.backgroundColor = "rgb(50, 255, 50)";
+                        tempTimes[i] = 999_999_999;
+                        passed++;
+                        beep.play();
+                    }
+                }
+
+                if (passed >= tempTimes.length) running = false;
+            }
+
+            setTimeout(function() 
+            {
+                if (running == true) 
+                {
+                    Timer();
+                } else 
+                {
+                    tempTimes = [];
+                    passed = 0;
+                    tick = 0;
+                    startBtn.innerHTML = "Start";
+                }
+            }, 100);
+        }
+
+
+        function ManageCookie(bool) // true is save, false is load
+        {
+            if (bool) 
+            {
+                if (triggerTimes != [])
+                {
+                    UpdateTriggerTimes();
+                    document.cookie = `{"timers":{"triggerNums": [${triggerTimes}]}, "settings":{"volume": ${volumeSlider.value}}}`;
+                    console.log(document.cookie);
+                    console.log("Cookie saved.");
+                }
+            } else 
+            {
+                let cookie = JSON.parse(decodeURIComponent(document.cookie));
+                timerInput.value = cookie.timers.triggerNums.length || 3;
+                triggerTimes = cookie.timers.triggerNums || [];
+                volumeSlider.value = cookie.settings.volume;
+                beep.volume = cookie.settings.volume/10;
+                ApplyStages();
+                console.log("Cookie Loaded.")
+            }
+        }
+        function ManageJson(bool) // true is save, false is load
+        {
+            if (bool)
+            {
+                UpdateTriggerTimes();
+                let jsonFile = `{"timers":{"triggerNums": [${triggerTimes}]}, "settings":{"volume": ${volumeSlider.value}}}`;
+                let element = document.createElement('a');
+                element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(jsonFile));
+                element.setAttribute('download', "data.json");
+
+                element.style.display = 'none';
+                document.body.appendChild(element);
+                element.click();
+                document.body.removeChild(element);
+                console.log("JSON saved.");
+            } else 
+            {
+                // these 2 functions get saved information from the .json (using the localStorage method doesnt work) 
+                // i got it from internet idk why its like this or exactly what it does
+                function readTextFile(file, callback) 
+                {
+                    var rawFile = new XMLHttpRequest();
+                    rawFile.overrideMimeType("application/json");
+                    rawFile.open("GET", file, true);
+                    rawFile.onreadystatechange = function() 
+                    {
+                        if (rawFile.readyState === 4 && rawFile.status == "200") 
+                        {
+                            callback(rawFile.responseText);
+                        }
+                    }
+                    rawFile.send(null);
+                }
+                readTextFile("./data.json", function(text)
+                { 
+                    let jsonFile = JSON.parse(text); //parse JSON
+                    timerInput.value = jsonFile.timers.triggerNums.length || 3;
+                    triggerTimes = jsonFile.timers.triggerNums || [];
+                    volumeSlider.value = jsonFile.settings.volume;
+                    beep.volume = jsonFile.settings.volume/10;
+                    ApplyStages();
+                    console.log(`JSON Loaded.`)
+                }); 
+            }
+        }
+    </script>    
+</body>
+</html>
